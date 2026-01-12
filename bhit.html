@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble Pop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        #lives {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        #level {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        #levelUp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            z-index: 150;
+            opacity: 0;
+            pointer-events: none;
+            animation: levelUpAnim 2s ease-out;
+        }
+
+        @keyframes levelUpAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2),
+                        inset 10px 10px 20px rgba(255,255,255,0.3),
+                        0 5px 15px rgba(0,0,0,0.3);
+            pointer-events: all;
+        }
+
+        .bubble::before {
+            content: '';
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 40%;
+            height: 40%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8), transparent);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .bomb {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: all;
+            background: radial-gradient(circle at 30% 30%, #ff0000, #8B0000);
+            box-shadow: 0 0 20px rgba(255,0,0,0.5),
+                        inset -5px -5px 10px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 20px rgba(255,0,0,0.5);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 30px rgba(255,0,0,0.8);
+            }
+        }
+
+        .explode {
+            animation: explodeEffect 0.4s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes explodeEffect {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+            }
+            100% {
+                transform: scale(3);
+                opacity: 0;
+            }
+        }
+
+        .pop {
+            animation: popEffect 0.3s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes popEffect {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        .pop-particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle 0.6s ease-out forwards;
+        }
+
+        @keyframes particle {
+            to {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 200;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        #gameOver h2 {
+            font-size: 36px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        #finalScore {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        #restartBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        #restartBtn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="lives">❤️ 3</div>
+        <div id="level">Level: 1</div>
+        <div id="levelUp"></div>
+        
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <div id="finalScore"></div>
+            <button id="restartBtn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('gameContainer');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const levelEl = document.getElementById('level');
+        const levelUpEl = document.getElementById('levelUp');
+        const gameOverEl = document.getElementById('gameOver');
+        const finalScoreEl = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+
+        let score = 0;
+        let lives = 5;
+        let level = 1;
+        let gameActive = true;
+        let bubbles = [];
+        let spawnInterval;
+        let baseSpeed = 1.5;
+        let spawnRate = 1000;
+
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
+            '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'
+        ];
+
+        // Piano note frequencies (C major scale)
+        const pianoNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+        
+        // Create audio context for piano sounds
+        let audioContext;
+        
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playPianoNote(frequency) {
+            initAudio();
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function playExplosionSound() {
+            initAudio();
+            
+            // Layer 1: Deep boom
+            const boom = audioContext.createOscillator();
+            const boomGain = audioContext.createGain();
+            boom.connect(boomGain);
+            boomGain.connect(audioContext.destination);
+            boom.frequency.setValueAtTime(80, audioContext.currentTime);
+            boom.frequency.exponentialRampToValueAtTime(20, audioContext.currentTime + 0.5);
+            boom.type = 'sine';
+            boomGain.gain.setValueAtTime(0.6, audioContext.currentTime);
+            boomGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            boom.start(audioContext.currentTime);
+            boom.stop(audioContext.currentTime + 0.5);
+            
+            // Layer 2: Harsh explosion noise
+            const noise = audioContext.createOscillator();
+            const noiseGain = audioContext.createGain();
+            noise.connect(noiseGain);
+            noiseGain.connect(audioContext.destination);
+            noise.frequency.setValueAtTime(150, audioContext.currentTime);
+            noise.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.3);
+            noise.type = 'sawtooth';
+            noiseGain.gain.setValueAtTime(0.5, audioContext.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            noise.start(audioContext.currentTime);
+            noise.stop(audioContext.currentTime + 0.3);
+            
+            // Layer 3: High frequency crack
+            const crack = audioContext.createOscillator();
+            const crackGain = audioContext.createGain();
+            crack.connect(crackGain);
+            crackGain.connect(audioContext.destination);
+            crack.frequency.setValueAtTime(800, audioContext.currentTime);
+            crack.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.15);
+            crack.type = 'square';
+            crackGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            crackGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            crack.start(audioContext.currentTime);
+            crack.stop(audioContext.currentTime + 0.15);
+        }
+
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'pop-particle';
+                particle.style.background = color;
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                
+                const angle = (Math.PI * 2 * i) / 8;
+                const distance = 50 + Math.random() * 30;
+                particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                
+                container.appendChild(particle);
+                
+                setTimeout(() => particle.remove(), 600);
+            }
+        }
+
+        function createBubble() {
+            if (!gameActive) return;
+
+            // 20% chance to spawn a bomb if level >= 6
+            const isBomb = level >= 6 && Math.random() < 0.2;
+
+            if (isBomb) {
+                createBomb();
+            } else {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                
+                const size = Math.random() * 40 + 50;
+                bubble.style.width = size + 'px';
+                bubble.style.height = size + 'px';
+                bubble.style.left = Math.random() * (window.innerWidth - size) + 'px';
+                bubble.style.bottom = '-100px';
+                
+                const colorIndex = Math.floor(Math.random() * colors.length);
+                const color = colors[colorIndex];
+                bubble.style.background = color;
+                
+                // Speed increases with level
+                const speed = baseSpeed + (level - 1) * 0.3 + Math.random() * 0.5;
+                
+                container.appendChild(bubble);
+                
+                const bubbleObj = {
+                    element: bubble,
+                    speed: speed,
+                    popped: false,
+                    size: size,
+                    color: color,
+                    noteIndex: colorIndex,
+                    isBomb: false
+                };
+                
+                bubbles.push(bubbleObj);
+                
+                // Handle both touch and click events
+                const popHandler = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    popBubble(bubbleObj, e);
+                };
+                
+                bubble.addEventListener('touchstart', popHandler);
+                bubble.addEventListener('click', popHandler);
+            }
+        }
+
+        function createBomb() {
+            const bomb = document.createElement('div');
+            bomb.className = 'bomb';
+            bomb.innerHTML = '💣';
+            
+            const size = 60;
+            bomb.style.width = size + 'px';
+            bomb.style.height = size + 'px';
+            bomb.style.left = Math.random() * (window.innerWidth - size) + 'px';
+            bomb.style.bottom = '-100px';
+            
+            const speed = baseSpeed + (level - 1) * 0.3 + Math.random() * 0.5;
+            
+            container.appendChild(bomb);
+            
+            const bombObj = {
+                element: bomb,
+                speed: speed,
+                popped: false,
+                size: size,
+                isBomb: true
+            };
+            
+            bubbles.push(bombObj);
+            
+            const bombHandler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                explodeBomb(bombObj, e);
+            };
+            
+            bomb.addEventListener('touchstart', bombHandler);
+            bomb.addEventListener('click', bombHandler);
+        }
+
+        function popBubble(bubbleObj, e) {
+            if (bubbleObj.popped || !gameActive) return;
+            
+            bubbleObj.popped = true;
+            
+            // Play piano note based on bubble color
+            playPianoNote(pianoNotes[bubbleObj.noteIndex]);
+            
+            // Get bubble position for particles
+            const rect = bubbleObj.element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            
+            createParticles(x, y, bubbleObj.color);
+            
+            bubbleObj.element.classList.add('pop');
+            
+            score += 10;
+            scoreEl.textContent = 'Score: ' + score;
+            
+            // Check for level up (every 100 points)
+            const newLevel = Math.floor(score / 100) + 1;
+            if (newLevel > level) {
+                level = newLevel;
+                levelEl.textContent = 'Level: ' + level;
+                showLevelUp();
+                updateDifficulty();
+            }
+            
+            setTimeout(() => {
+                if (bubbleObj.element.parentNode) {
+                    bubbleObj.element.remove();
+                }
+                bubbles = bubbles.filter(b => b !== bubbleObj);
+            }, 300);
+        }
+
+        function explodeBomb(bombObj, e) {
+            if (bombObj.popped || !gameActive) return;
+            
+            bombObj.popped = true;
+            
+            // Play explosion sound
+            playExplosionSound();
+            
+            // Get bomb position for particles
+            const rect = bombObj.element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            
+            createParticles(x, y, '#ff0000');
+            
+            bombObj.element.classList.add('explode');
+            
+            // Lose a life
+            lives--;
+            livesEl.textContent = '❤️ ' + lives;
+            
+            // Shake screen effect
+            container.style.animation = 'shake 0.3s';
+            setTimeout(() => {
+                container.style.animation = '';
+            }, 300);
+            
+            if (lives <= 0) {
+                endGame();
+            }
+            
+            setTimeout(() => {
+                if (bombObj.element.parentNode) {
+                    bombObj.element.remove();
+                }
+                bubbles = bubbles.filter(b => b !== bombObj);
+            }, 400);
+        }
+
+        function showLevelUp() {
+            levelUpEl.textContent = 'LEVEL ' + level + '!';
+            levelUpEl.style.animation = 'none';
+            setTimeout(() => {
+                levelUpEl.style.animation = 'levelUpAnim 2s ease-out';
+            }, 10);
+        }
+
+        function updateDifficulty() {
+            // Increase spawn rate (spawn bubbles faster)
+            clearInterval(spawnInterval);
+            spawnRate = Math.max(400, 1000 - (level - 1) * 80);
+            spawnInterval = setInterval(createBubble, spawnRate);
+        }
+
+        function updateBubbles() {
+            if (!gameActive) return;
+
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+                const bubbleObj = bubbles[i];
+                
+                if (bubbleObj.popped) continue;
+                
+                const currentBottom = parseFloat(bubbleObj.element.style.bottom);
+                const newBottom = currentBottom + bubbleObj.speed;
+                
+                if (newBottom > window.innerHeight + 50) {
+                    bubbleObj.element.remove();
+                    bubbles.splice(i, 1);
+                    
+                    // Only lose life if it's a bubble (not a bomb)
+                    if (!bubbleObj.popped && !bubbleObj.isBomb) {
+                        lives--;
+                        livesEl.textContent = '❤️ ' + lives;
+                        
+                        if (lives <= 0) {
+                            endGame();
+                        }
+                    }
+                } else {
+                    bubbleObj.element.style.bottom = newBottom + 'px';
+                }
+            }
+
+            requestAnimationFrame(updateBubbles);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(spawnInterval);
+            gameOverEl.style.display = 'block';
+            finalScoreEl.textContent = 'Final Score: ' + score;
+        }
+
+        function startGame() {
+            score = 0;
+            lives = 5;
+            level = 1;
+            baseSpeed = 1.5;
+            spawnRate = 1000;
+            gameActive = true;
+            bubbles = [];
+            
+            // Initialize audio context on first user interaction
+            initAudio();
+            
+            scoreEl.textContent = 'Score: 0';
+            livesEl.textContent = '❤️ 5';
+            levelEl.textContent = 'Level: 1';
+            gameOverEl.style.display = 'none';
+            
+            document.querySelectorAll('.bubble').forEach(b => b.remove());
+            document.querySelectorAll('.bomb').forEach(b => b.remove());
+            document.querySelectorAll('.pop-particle').forEach(p => p.remove());
+            
+            clearInterval(spawnInterval);
+            spawnInterval = setInterval(createBubble, spawnRate);
+            updateBubbles();
+        }
+
+        restartBtn.addEventListener('click', startGame);
+        
+        startGame();
+    </script>
+</body>
+</html>
